@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Repair Est.">
+<meta name="theme-color" content="#1a1611">
+<meta name="description" content="Property repair cost estimator and draw request tool">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+<title>Property Repair Estimator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1916;
+    --surface2: #232220;
+    --border: #2e2c29;
+    --accent: #c8a96e;
+    --accent-dim: #8a6f3e;
+    --text: #e8e4dc;
+    --text-muted: #888580;
+    --text-dim: #555350;
+    --good: #5a8a5f;
+    --fair: #8a7a3a;
+    --poor: #8a3f3f;
+    --good-bg: #1a2e1b;
+    --fair-bg: #2a2310;
+    --poor-bg: #2e1515;
+    --exterior: #2a4a6e;
+    --interior: #4e2a6e;
+    --mechanicals: #2a6e4e;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Manrope', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 120px;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(180deg, #1a1611 0%, var(--bg) 100%);
+    padding: 24px 20px 0;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .app-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+
+  .app-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  .export-btn {
+    background: var(--accent);
+    color: #1a1611;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+  .export-btn:active { opacity: 0.8; }
+
+  /* ADDRESS BAR */
+  .address-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .address-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .address-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    padding: 0;
+  }
+  .address-input::placeholder { color: var(--text-dim); }
+
+  /* DRAW DATE ROW */
+  .draw-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 20px 12px;
+  }
+
+  .draw-date-field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+
+  .draw-date-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .draw-date-input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    outline: none;
+    width: 100%;
+  }
+
+  /* TOTALS STRIP */
+  .totals-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 2px solid var(--accent-dim);
+    margin-bottom: 0;
+  }
+
+  .total-cell {
+    padding: 10px 12px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+  .total-cell:last-child { border-right: none; }
+
+  .total-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .total-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .total-value.balance {
+    color: #5a8a5f;
+  }
+
+  /* SECTION GROUPS */
+  .sections { padding: 0 16px; margin-top: 12px; }
+
+  .section-group {
+    margin-bottom: 20px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .section-header {
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s;
+  }
+  .section-header:active { opacity: 0.8; }
+
+  .exterior .section-header { background: #162436; color: #7eb8e8; }
+  .interior .section-header { background: #231636; color: #b87ee8; }
+  .mechanicals .section-header { background: #133326; color: #5ec49a; }
+
+  .section-total-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+
+  .section-toggle {
+    font-size: 16px;
+    transition: transform 0.2s;
+  }
+  .section-group.collapsed .section-toggle { transform: rotate(-90deg); }
+  .section-group.collapsed .items-list { display: none; }
+
+  /* ITEMS */
+  .items-list { background: var(--surface); }
+
+  .repair-item {
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px;
+    position: relative;
+  }
+  .repair-item:last-child { border-bottom: none; }
+
+  .item-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .condition-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    border: none;
+    font-family: 'Manrope', sans-serif;
+  }
+  .condition-badge:active { opacity: 0.7; }
+  .condition-good { background: var(--good-bg); color: #7ac47f; }
+  .condition-fair { background: var(--fair-bg); color: #c8aa5a; }
+  .condition-poor { background: var(--poor-bg); color: #c87a7a; }
+  .condition-na { background: var(--surface2); color: var(--text-muted); }
+
+  .item-description {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 8px;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 6px 8px;
+    min-height: 28px;
+    border: 1px solid var(--border);
+    width: 100%;
+    font-family: 'Manrope', sans-serif;
+    outline: none;
+    resize: none;
+    line-height: 1.4;
+    overflow: hidden;
+    color: var(--text-muted);
+  }
+  .item-description:focus {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+  .item-description::placeholder { color: var(--text-dim); }
+
+  .item-numbers {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  .amount-field {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    text-align: right;
+  }
+
+  .amount-field label {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .amount-field input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: right;
+    outline: none;
+    width: 100%;
+  }
+  .amount-field input::placeholder { color: var(--text-dim); }
+  .amount-field input:focus { color: var(--accent); }
+
+  .balance-display {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    text-align: right;
+  }
+  .balance-display label {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .balance-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--good);
+  }
+  .balance-value.negative { color: var(--poor); }
+
+  /* GRAND TOTAL SECTION */
+  .grand-total {
+    margin: 0 16px 24px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #1e1a0f 0%, #1a150a 100%);
+    border: 1px solid var(--accent-dim);
+    padding: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .grand-total::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 100px; height: 100px;
+    background: radial-gradient(circle, rgba(200,169,110,0.08) 0%, transparent 70%);
+  }
+
+  .grand-total-label {
+    font-size: 11px;
+    color: var(--accent-dim);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .grand-totals-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .grand-total-item label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .grand-total-item .val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .grand-total-item.balance-item .val {
+    color: #7ac47f;
+  }
+
+  /* MODAL for condition picker */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .condition-picker {
+    background: var(--surface);
+    border-radius: var(--radius) var(--radius) 0 0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    padding: 20px;
+    width: 100%;
+    max-width: 480px;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+  }
+  .modal-overlay.show .condition-picker { transform: translateY(0); }
+
+  .picker-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    color: var(--text);
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .picker-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .picker-option {
+    padding: 14px 8px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+    font-family: 'Manrope', sans-serif;
+  }
+  .picker-option.good { background: var(--good-bg); color: #7ac47f; }
+  .picker-option.fair { background: var(--fair-bg); color: #c8aa5a; }
+  .picker-option.poor { background: var(--poor-bg); color: #c87a7a; }
+  .picker-option.na { background: var(--surface2); color: var(--text-muted); }
+  .picker-option:active { transform: scale(0.95); }
+  .picker-option.selected { border-color: currentColor; }
+
+  .picker-cancel {
+    width: 100%;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Export overlay */
+  .export-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .export-overlay.show { opacity: 1; pointer-events: all; }
+
+  .export-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .export-box h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .export-box p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .export-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .export-action-btn {
+    padding: 13px;
+    border-radius: var(--radius-sm);
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s;
+  }
+  .export-action-btn:active { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #1a1611; }
+  .btn-excel { background: #1a5e2a; color: #a8e6b8; border: 1px solid #2a7a3a; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+  @media (max-width: 360px) {
+    .grand-totals-grid { grid-template-columns: 1fr 1fr; }
+    .grand-total-item .val { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PWA Install Banner -->
+<div id="installBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:500; background:#1e1a0f; border-top:2px solid #c8a96e; padding:14px 16px; align-items:center; gap:12px;">
+  <div style="flex:1;">
+    <div style="font-family:'Manrope',sans-serif; font-size:13px; font-weight:700; color:#c8a96e;">Install App</div>
+    <div style="font-family:'Manrope',sans-serif; font-size:11px; color:#888580; margin-top:2px;">Add to home screen for offline use</div>
+  </div>
+  <button onclick="installApp()" style="background:#c8a96e; color:#1a1611; border:none; border-radius:8px; padding:9px 16px; font-family:'Manrope',sans-serif; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;">Install</button>
+  <button onclick="dismissInstall()" style="background:transparent; border:none; color:#888580; font-size:20px; cursor:pointer; padding:0 4px; line-height:1;">✕</button>
+</div>
+
+<!-- Save Toast -->
+<div id="saveToast" style="display:none; position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:600; background:#1a5e2a; color:#a8e6b8; border:1px solid #2a7a3a; border-radius:20px; padding:8px 18px; font-family:'Manrope',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.05em; white-space:nowrap; box-shadow:0 4px 20px rgba(0,0,0,0.5);">✓ Saved</div>
+
+<div class="print-header" id="printHeader">
+  <h1>Estimated Cost of Repairs</h1>
+  <div class="print-address" id="printAddress"></div>
+  <div class="print-dates" id="printDates"></div>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="app-title">Repair Estimator</div>
+      <div class="app-subtitle">Draw Request Template</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="offlineBadge" style="display:none;font-size:10px;background:#2a1a00;color:#c8a96e;border:1px solid #8a6f3e;border-radius:10px;padding:3px 8px;font-family:'Manrope',sans-serif;font-weight:700;">OFFLINE</span>
+      <button class="export-btn" onclick="showExport()">⬇ Export</button>
+    </div>
+  </div>
+  <div class="address-row">
+    <span class="address-label">📍</span>
+    <input class="address-input" id="propertyAddress" placeholder="Property address..." 
+           value="2540 Catalpa Dr, Dayton, OH 45406">
+  </div>
+</div>
+
+<div class="draw-dates">
+  <div class="draw-date-field">
+    <label class="draw-date-label">Draw #1 Date</label>
+    <input class="draw-date-input" id="draw1date" type="text" placeholder="MM/DD/YYYY">
+  </div>
+  <div class="draw-date-field">
+    <label class="draw-date-label">Draw #2 Date</label>
+    <input class="draw-date-input" id="draw2date" type="text" placeholder="MM/DD/YYYY">
+  </div>
+</div>
+
+<div class="totals-strip">
+  <div class="total-cell">
+    <span class="total-label">Estimated</span>
+    <span class="total-value" id="headerTotal">$0</span>
+  </div>
+  <div class="total-cell">
+    <span class="total-label">Draw #1</span>
+    <span class="total-value" id="headerDraw1">$0</span>
+  </div>
+  <div class="total-cell">
+    <span class="total-label">Draw #2</span>
+    <span class="total-value" id="headerDraw2">$0</span>
+  </div>
+  <div class="total-cell">
+    <span class="total-label">Balance</span>
+    <span class="total-value balance" id="headerBalance">$0</span>
+  </div>
+</div>
+
+<div class="sections" id="sectionsContainer"></div>
+<div class="grand-total" id="grandTotalBlock">
+  <div class="grand-total-label">Total Estimated Cost of Repair</div>
+  <div class="grand-totals-grid">
+    <div class="grand-total-item">
+      <label>Estimated</label>
+      <div class="val" id="gtEstimated">$0</div>
+    </div>
+    <div class="grand-total-item">
+      <label>Draw #1</label>
+      <div class="val" id="gtDraw1">$0</div>
+    </div>
+    <div class="grand-total-item">
+      <label>Draw #2</label>
+      <div class="val" id="gtDraw2">$0</div>
+    </div>
+    <div class="grand-total-item balance-item">
+      <label>Balance</label>
+      <div class="val" id="gtBalance">$0</div>
+    </div>
+  </div>
+</div>
+
+<!-- Condition Picker Modal -->
+<div class="modal-overlay" id="conditionModal" onclick="closeModal(event)">
+  <div class="condition-picker">
+    <div class="picker-title">Condition</div>
+    <div class="picker-options">
+      <div class="picker-option good" onclick="selectCondition('good')">Good</div>
+      <div class="picker-option fair" onclick="selectCondition('fair')">Fair</div>
+      <div class="picker-option poor" onclick="selectCondition('poor')">Poor</div>
+      <div class="picker-option na" onclick="selectCondition('n/a')">N/A</div>
+    </div>
+    <button class="picker-cancel" onclick="closeConditionModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="export-overlay" id="exportOverlay" onclick="closeExport(event)">
+  <div class="export-box" onclick="event.stopPropagation()">
+    <h2>Export Report</h2>
+    <p>Save your repair estimate as Excel, PDF, or copy summary data.</p>
+    <div class="export-actions">
+      <button class="export-action-btn btn-excel" onclick="exportXLSX()">📊 Download Excel (.xlsx)</button>
+      <button class="export-action-btn btn-primary" onclick="printReport()">🖨️ Print / Save as PDF</button>
+      <button class="export-action-btn btn-secondary" onclick="copyCSV()">📋 Copy CSV Data</button>
+      <button class="export-action-btn btn-secondary" onclick="clearAndReset()" style="border-color:#8a3f3f;color:#c87a7a;">🗑 Clear & Start New Property</button>
+      <button class="export-action-btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  {
+    id: 'exterior',
+    label: 'Exterior',
+    cssClass: 'exterior',
+    items: [
+      { id: 'demo', name: 'Demo Property', condition: 'poor', description: 'Demo kitchen bath and cleanout', amount: 3000 },
+      { id: 'foundation', name: 'Foundation', condition: 'fair', description: 'Clean and paint', amount: 1200 },
+      { id: 'gutters', name: 'Gutters / Fascia / Downspout', condition: 'good', description: 'Newer gutters', amount: 0 },
+      { id: 'siding', name: 'Siding / Paint', condition: 'good', description: 'Brick and vinyl siding', amount: 0 },
+      { id: 'porch', name: 'Porch / Deck', condition: 'good', description: '', amount: 0 },
+      { id: 'landscaping', name: 'Landscaping / Fence', condition: 'fair', description: 'Minor cleanup as needed', amount: 500 },
+      { id: 'roof', name: 'Roof', condition: 'poor', description: 'Needs roof on house and garage', amount: 6500 },
+      { id: 'driveway', name: 'Driveway / Sidewalk', condition: 'fair', description: '', amount: 0 },
+      { id: 'garage', name: 'Garage / Exterior Doors', condition: 'good', description: '', amount: 0 },
+      { id: 'attic', name: 'Attic Insulation', condition: 'fair', description: '', amount: 0 },
+      { id: 'exterior_other', name: 'Other', condition: 'n/a', description: '', amount: 0 },
+    ]
+  },
+  {
+    id: 'interior',
+    label: 'Interior',
+    cssClass: 'interior',
+    items: [
+      { id: 'basement', name: 'Basement', condition: 'good', description: 'Basement', amount: 0 },
+      { id: 'windows', name: 'Windows', condition: 'poor', description: 'Replace windows', amount: 4500 },
+      { id: 'molding', name: 'Molding', condition: 'good', description: 'Install molding as needed', amount: 500 },
+      { id: 'flooring', name: 'Flooring (all rooms)', condition: 'fair', description: 'Install LVP or refinish hardwood as needed', amount: 4500 },
+      { id: 'drywall', name: 'Drywall', condition: 'fair', description: 'Repair drywall as needed', amount: 750 },
+      { id: 'trim', name: 'Trim / Ceilings / Wall', condition: 'good', description: '', amount: 0 },
+      { id: 'paint', name: 'Paint / Tile', condition: 'fair', description: 'Paint with rental colors', amount: 2500 },
+      { id: 'bath', name: 'Bath / Vanities / Faucet', condition: 'poor', description: 'Reno 2 bathrooms', amount: 9000 },
+      { id: 'lighting', name: 'Lighting', condition: 'fair', description: 'Replace fixtures', amount: 750 },
+      { id: 'appliances', name: 'Kitchen Appliances', condition: 'good', description: 'Add appliances', amount: 2000 },
+      { id: 'kitchen', name: 'Kitchen: Cabinets & Countertops', condition: 'poor', description: 'Update kitchen', amount: 5000 },
+      { id: 'interior_other', name: 'Other', condition: 'n/a', description: '', amount: 0 },
+    ]
+  },
+  {
+    id: 'mechanicals',
+    label: 'Mechanicals / Systems',
+    cssClass: 'mechanicals',
+    items: [
+      { id: 'plumbing', name: 'Plumbing', condition: 'good', description: 'Minor repairs as needed', amount: 1000 },
+      { id: 'electrical', name: 'Electrical', condition: 'good', description: 'Finish minor electric repairs', amount: 250 },
+      { id: 'hvac', name: 'Heating / Cooling', condition: 'poor', description: 'Add AC unit to property', amount: 2500 },
+      { id: 'sewer', name: 'Sewer / Septic', condition: 'good', description: 'Clean main line and vanity', amount: 450 },
+      { id: 'systems_other', name: 'Other (Misc)', condition: 'n/a', description: 'Misc unknowns', amount: 2500 },
+    ]
+  }
+];
+
+// State
+const state = {};
+SECTIONS.forEach(s => {
+  s.items.forEach(item => {
+    state[item.id] = {
+      condition: item.condition,
+      description: item.description,
+      amount: item.amount,
+      draw1: 0,
+      draw2: 0
+    };
+  });
+});
+
+let activeConditionItemId = null;
+
+function fmt(val) {
+  if (val === 0) return '$0';
+  return '$' + Math.abs(val).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function fmtSigned(val) {
+  if (val === 0) return '$0';
+  return (val < 0 ? '-' : '') + '$' + Math.abs(val).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function conditionClass(c) {
+  if (c === 'good') return 'condition-good';
+  if (c === 'fair') return 'condition-fair';
+  if (c === 'poor') return 'condition-poor';
+  return 'condition-na';
+}
+
+function renderSections() {
+  const container = document.getElementById('sectionsContainer');
+  container.innerHTML = '';
+  SECTIONS.forEach(section => {
+    const div = document.createElement('div');
+    div.className = `section-group ${section.cssClass}`;
+    div.id = `section-${section.id}`;
+
+    const totals = getSectionTotals(section);
+    div.innerHTML = `
+      <div class="section-header" onclick="toggleSection('${section.id}')">
+        <span>${section.label}</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="section-total-badge">${fmt(totals.amount)}</span>
+          <span class="section-toggle">▾</span>
+        </div>
+      </div>
+      <div class="items-list" id="items-${section.id}">
+        ${section.items.map(item => renderItem(item)).join('')}
+      </div>
+    `;
+    container.appendChild(div);
+    bindItemEvents(section);
+  });
+  updateTotals();
+}
+
+function renderItem(item) {
+  const s = state[item.id];
+  const balance = s.amount - s.draw1 - s.draw2;
+  return `
+    <div class="repair-item" id="item-${item.id}">
+      <div class="item-row1">
+        <div class="item-name">${item.name}</div>
+        <button class="condition-badge ${conditionClass(s.condition)}" 
+                onclick="openConditionModal('${item.id}')">${s.condition}</button>
+      </div>
+      <textarea class="item-description" id="desc-${item.id}" 
+                placeholder="Description..." rows="1"
+                oninput="autoResize(this); updateDesc('${item.id}', this.value)">${s.description}</textarea>
+      <div class="item-numbers">
+        <div class="amount-field">
+          <label>Estimated $</label>
+          <input type="number" id="amt-${item.id}" value="${s.amount || ''}" 
+                 placeholder="0" min="0" step="100"
+                 oninput="updateAmount('${item.id}', this.value)">
+        </div>
+        <div class="amount-field">
+          <label>Draw #1</label>
+          <input type="number" id="d1-${item.id}" value="${s.draw1 || ''}" 
+                 placeholder="0" min="0"
+                 oninput="updateDraw('${item.id}', 1, this.value)">
+        </div>
+        <div class="amount-field">
+          <label>Draw #2</label>
+          <input type="number" id="d2-${item.id}" value="${s.draw2 || ''}" 
+                 placeholder="0" min="0"
+                 oninput="updateDraw('${item.id}', 2, this.value)">
+        </div>
+      </div>
+      <div style="margin-top:6px; display:grid; grid-template-columns:1fr; gap:6px;">
+        <div class="balance-display">
+          <label>Balance Remaining</label>
+          <span class="balance-value ${balance < 0 ? 'negative' : ''}" id="bal-${item.id}">${fmtSigned(balance)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindItemEvents(section) {
+  section.items.forEach(item => {
+    const ta = document.getElementById(`desc-${item.id}`);
+    if (ta) autoResize(ta);
+  });
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function updateDesc(id, val) { state[id].description = val; scheduleSave(); }
+function updateAmount(id, val) {
+  state[id].amount = parseFloat(val) || 0;
+  updateItemBalance(id);
+  updateTotals();
+  updateSectionHeader(findSection(id));
+  scheduleSave();
+}
+function updateDraw(id, num, val) {
+  if (num === 1) state[id].draw1 = parseFloat(val) || 0;
+  else state[id].draw2 = parseFloat(val) || 0;
+  updateItemBalance(id);
+  updateTotals();
+  updateSectionHeader(findSection(id));
+  scheduleSave();
+}
+
+function updateItemBalance(id) {
+  const s = state[id];
+  const balance = s.amount - s.draw1 - s.draw2;
+  const el = document.getElementById(`bal-${id}`);
+  if (el) {
+    el.textContent = fmtSigned(balance);
+    el.className = `balance-value ${balance < 0 ? 'negative' : ''}`;
+  }
+}
+
+function findSection(itemId) {
+  return SECTIONS.find(s => s.items.some(i => i.id === itemId));
+}
+
+function getSectionTotals(section) {
+  let amount = 0, draw1 = 0, draw2 = 0;
+  section.items.forEach(item => {
+    const s = state[item.id];
+    amount += s.amount || 0;
+    draw1 += s.draw1 || 0;
+    draw2 += s.draw2 || 0;
+  });
+  return { amount, draw1, draw2, balance: amount - draw1 - draw2 };
+}
+
+function updateSectionHeader(section) {
+  if (!section) return;
+  const totals = getSectionTotals(section);
+  const badge = document.querySelector(`#section-${section.id} .section-total-badge`);
+  if (badge) badge.textContent = fmt(totals.amount);
+}
+
+function updateTotals() {
+  let totalAmt = 0, totalD1 = 0, totalD2 = 0;
+  SECTIONS.forEach(s => {
+    const t = getSectionTotals(s);
+    totalAmt += t.amount;
+    totalD1 += t.draw1;
+    totalD2 += t.draw2;
+  });
+  const balance = totalAmt - totalD1 - totalD2;
+
+  document.getElementById('headerTotal').textContent = fmt(totalAmt);
+  document.getElementById('headerDraw1').textContent = fmt(totalD1);
+  document.getElementById('headerDraw2').textContent = fmt(totalD2);
+  document.getElementById('headerBalance').textContent = fmtSigned(balance);
+  document.getElementById('gtEstimated').textContent = fmt(totalAmt);
+  document.getElementById('gtDraw1').textContent = fmt(totalD1);
+  document.getElementById('gtDraw2').textContent = fmt(totalD2);
+  document.getElementById('gtBalance').textContent = fmtSigned(balance);
+}
+
+function toggleSection(id) {
+  const el = document.getElementById(`section-${id}`);
+  el.classList.toggle('collapsed');
+}
+
+// Condition Modal
+function openConditionModal(itemId) {
+  activeConditionItemId = itemId;
+  const modal = document.getElementById('conditionModal');
+  const s = state[itemId];
+  // Highlight current
+  modal.querySelectorAll('.picker-option').forEach(opt => {
+    opt.classList.toggle('selected', opt.textContent.toLowerCase() === s.condition);
+  });
+  modal.classList.add('show');
+}
+
+function selectCondition(val) {
+  if (!activeConditionItemId) return;
+  state[activeConditionItemId].condition = val;
+  // Update badge
+  const btn = document.querySelector(`#item-${activeConditionItemId} .condition-badge`);
+  if (btn) {
+    btn.textContent = val;
+    btn.className = `condition-badge ${conditionClass(val)}`;
+  }
+  closeConditionModal();
+  scheduleSave();
+}
+
+function closeConditionModal() {
+  document.getElementById('conditionModal').classList.remove('show');
+  activeConditionItemId = null;
+}
+
+function closeModal(e) {
+  if (e.target.id === 'conditionModal') closeConditionModal();
+}
+
+// Export
+function showExport() { document.getElementById('exportOverlay').classList.add('show'); }
+function closeExport(e) { if (e.target.id === 'exportOverlay') closeExportModal(); }
+function closeExportModal() { document.getElementById('exportOverlay').classList.remove('show'); }
+
+function clearAndReset() {
+  if (!confirm('Clear all data and start a new property estimate? This cannot be undone.')) return;
+  closeExportModal();
+  localStorage.removeItem(STORAGE_KEY);
+  // Reset state to defaults
+  SECTIONS.forEach(s => {
+    s.items.forEach(item => {
+      state[item.id] = { condition: item.condition, description: item.description, amount: item.amount, draw1: 0, draw2: 0 };
+    });
+  });
+  document.getElementById('propertyAddress').value = '';
+  document.getElementById('draw1date').value = '';
+  document.getElementById('draw2date').value = '';
+  renderSections();
+  patchAutosave();
+}
+
+function buildPrintDoc() {
+  const addr = document.getElementById('propertyAddress').value || '';
+  const d1date = document.getElementById('draw1date').value || '';
+  const d2date = document.getElementById('draw2date').value || '';
+  const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  let totalAmt = 0, totalD1 = 0, totalD2 = 0;
+  SECTIONS.forEach(s => { const t = getSectionTotals(s); totalAmt += t.amount; totalD1 += t.draw1; totalD2 += t.draw2; });
+  const totalBal = totalAmt - totalD1 - totalD2;
+
+  function condHtml(c) {
+    const cls = ['good','fair','poor'].includes(c) ? c : 'na';
+    return `<span class="pd-cond ${cls}">${c}</span>`;
+  }
+
+  function money(v) {
+    if (!v && v !== 0) return '-';
+    if (v === 0) return '-';
+    return '$' + Math.abs(v).toLocaleString('en-US');
+  }
+
+  function balCell(v) {
+    const neg = v < 0;
+    return `<td class="balance-cell${neg ? ' balance-neg' : ''}">${neg ? '-' : ''}${money(Math.abs(v))}</td>`;
+  }
+
+  let sectionsHtml = '';
+  SECTIONS.forEach(section => {
+    const t = getSectionTotals(section);
+    let rows = '';
+    section.items.forEach(item => {
+      const s = state[item.id];
+      const bal = s.amount - s.draw1 - s.draw2;
+      rows += `<tr>
+        <td>${item.name}</td>
+        <td>${condHtml(s.condition)}</td>
+        <td style="color:#555;font-size:8.5pt;font-style:italic;">${s.description || ''}</td>
+        <td class="num">${money(s.amount)}</td>
+        <td class="num">${money(s.draw1)}</td>
+        <td class="num">${money(s.draw2)}</td>
+        ${balCell(bal)}
+      </tr>`;
+    });
+    const secBal = t.amount - t.draw1 - t.draw2;
+    rows += `<tr class="section-total">
+      <td colspan="3">${section.label} Total</td>
+      <td class="num">${money(t.amount)}</td>
+      <td class="num">${money(t.draw1)}</td>
+      <td class="num">${money(t.draw2)}</td>
+      ${balCell(secBal)}
+    </tr>`;
+
+    sectionsHtml += `
+      <div class="pd-section ${section.cssClass}">
+        <div class="pd-section-title">${section.label}</div>
+        <table class="pd-table">
+          <thead>
+            <tr>
+              <th style="width:22%">Item</th>
+              <th style="width:9%">Condition</th>
+              <th>Description</th>
+              <th class="num" style="width:10%">Estimated</th>
+              <th class="num" style="width:10%">Draw #1${d1date ? '<br><span style="font-weight:400;font-size:7pt">'+d1date+'</span>' : ''}</th>
+              <th class="num" style="width:10%">Draw #2${d2date ? '<br><span style="font-weight:400;font-size:7pt">'+d2date+'</span>' : ''}</th>
+              <th class="num" style="width:11%">Balance</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  });
+
+  document.getElementById('print-doc').innerHTML = `
+    <div class="pd-header">
+      <div class="pd-header-top">
+        <div>
+          <div class="pd-title">Estimated Cost of Repairs</div>
+          <div class="pd-subtitle">Draw Request Template</div>
+        </div>
+        <div class="pd-meta">
+          Prepared: ${now}
+        </div>
+      </div>
+      ${addr ? `<div class="pd-address-row"><span class="pd-address-label">Property Address &nbsp;</span>${addr}</div>` : ''}
+    </div>
+
+    <div class="pd-summary">
+      <div class="pd-summary-cell">
+        <span class="pd-sum-label">Total Estimated</span>
+        <span class="pd-sum-value">${money(totalAmt)}</span>
+      </div>
+      <div class="pd-summary-cell">
+        <span class="pd-sum-label">Draw #1${d1date ? ' — '+d1date : ''}</span>
+        <span class="pd-sum-value">${money(totalD1)}</span>
+      </div>
+      <div class="pd-summary-cell">
+        <span class="pd-sum-label">Draw #2${d2date ? ' — '+d2date : ''}</span>
+        <span class="pd-sum-value">${money(totalD2)}</span>
+      </div>
+      <div class="pd-summary-cell balance">
+        <span class="pd-sum-label">Balance Remaining</span>
+        <span class="pd-sum-value">${money(totalBal)}</span>
+      </div>
+    </div>
+
+    ${sectionsHtml}
+
+    <div class="pd-grand-total">
+      <div class="pd-grand-total-label">Total Estimated Cost of Repair</div>
+      <table><tr>
+        <td><span class="pd-gt-label">Estimated</span><span class="pd-gt-value">${money(totalAmt)}</span></td>
+        <td><span class="pd-gt-label">Draw #1</span><span class="pd-gt-value">${money(totalD1)}</span></td>
+        <td><span class="pd-gt-label">Draw #2</span><span class="pd-gt-value">${money(totalD2)}</span></td>
+        <td><span class="pd-gt-label">Balance Remaining</span><span class="pd-gt-value">${money(totalBal)}</span></td>
+      </tr></table>
+    </div>
+
+    <div class="pd-footer">
+      <span>${addr || 'Property Repair Estimate'}</span>
+      <span>Prepared ${now} · Draw Request Template</span>
+    </div>
+  `;
+}
+
+function printReport() {
+  closeExportModal();
+  buildPrintDoc();
+  setTimeout(() => window.print(), 250);
+}
+
+function exportXLSX() {
+  closeExportModal();
+  const addr = document.getElementById('propertyAddress').value || 'Property';
+  const d1date = document.getElementById('draw1date').value || '';
+  const d2date = document.getElementById('draw2date').value || '';
+
+  const wb = XLSX.utils.book_new();
+  const rows = [];
+
+  // Title rows
+  rows.push(['Estimated Cost of Repairs', '', '', '', '', '', '']);
+  rows.push([`Property Address: ${addr}`, '', '', '', '', '', '']);
+  rows.push(['']);
+  rows.push(['Items', 'Present Condition', 'Description', 'Amount', `Draw #1${d1date ? ' ('+d1date+')' : ''}`, `Draw #2${d2date ? ' ('+d2date+')' : ''}`, 'Balance Remaining']);
+
+  SECTIONS.forEach(section => {
+    // Section label row
+    rows.push([section.label, '', '', '', '', '', '']);
+
+    section.items.forEach(item => {
+      const s = state[item.id];
+      rows.push([
+        item.name,
+        s.condition,
+        s.description,
+        s.amount || 0,
+        s.draw1 || 0,
+        s.draw2 || 0,
+        { f: `D${rows.length + 1}-E${rows.length + 1}-F${rows.length + 1}` }
+      ]);
+    });
+
+    // Section total
+    const t = getSectionTotals(section);
+    rows.push([`${section.label} Total`, '', '', t.amount, t.draw1, t.draw2, t.amount - t.draw1 - t.draw2]);
+    rows.push(['']);
+  });
+
+  // Grand total
+  let totalAmt = 0, totalD1 = 0, totalD2 = 0;
+  SECTIONS.forEach(s => { const t = getSectionTotals(s); totalAmt += t.amount; totalD1 += t.draw1; totalD2 += t.draw2; });
+  rows.push(['Total Estimated Cost of Repair', '', '', totalAmt, totalD1, totalD2, totalAmt - totalD1 - totalD2]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 32 }, { wch: 16 }, { wch: 40 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 18 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Cost of Repairs');
+
+  const safeName = addr.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
+  XLSX.writeFile(wb, `${safeName}-Cost_of_Repairs.xlsx`);
+}
+
+function copyCSV() {
+  const addr = document.getElementById('propertyAddress').value;
+  const d1date = document.getElementById('draw1date').value;
+  const d2date = document.getElementById('draw2date').value;
+  let lines = [
+    `Estimated Cost of Repairs`,
+    `Property Address: ${addr}`,
+    ``,
+    `Section,Item,Condition,Description,Amount,Draw #1 (${d1date}),Draw #2 (${d2date}),Balance Remaining`
+  ];
+
+  SECTIONS.forEach(section => {
+    section.items.forEach(item => {
+      const s = state[item.id];
+      const balance = s.amount - s.draw1 - s.draw2;
+      lines.push(`${section.label},"${item.name}",${s.condition},"${s.description}",${s.amount},${s.draw1},${s.draw2},${balance}`);
+    });
+    const t = getSectionTotals(section);
+    lines.push(`${section.label} Total,,,,${t.amount},${t.draw1},${t.draw2},${t.balance}`);
+    lines.push('');
+  });
+
+  let totalAmt = 0, totalD1 = 0, totalD2 = 0;
+  SECTIONS.forEach(s => { const t = getSectionTotals(s); totalAmt += t.amount; totalD1 += t.draw1; totalD2 += t.draw2; });
+  lines.push(`Grand Total,,,,${totalAmt},${totalD1},${totalD2},${totalAmt - totalD1 - totalD2}`);
+
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    alert('CSV copied to clipboard!');
+    closeExportModal();
+  });
+}
+
+// Init — load saved data first, then render
+loadFromStorage();
+renderSections();
+patchAutosave();
+</script>
+
+<style>
+/* ── PRINT DOCUMENT ──────────────────────────────────────────────── */
+#print-doc { display: none; }
+
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Hide the entire mobile app UI */
+  .print-header, .header, .totals-strip, .draw-dates,
+  .sections, .grand-total, .modal-overlay, .export-overlay { display: none !important; }
+
+  /* Show only the print document */
+  #print-doc { display: block !important; }
+
+  body {
+    background: white !important;
+    color: #111 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-family: Arial, sans-serif;
+  }
+
+  @page {
+    size: letter portrait;
+    margin: 0.6in 0.6in 0.7in 0.6in;
+  }
+}
+
+/* ── PRINT DOC STYLES (also visible at screen when #print-doc shown) */
+#print-doc {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  color: #111;
+  background: white;
+  padding: 0;
+}
+
+/* Document header */
+.pd-header {
+  border-bottom: 3px solid #1a4a7a;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+.pd-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.pd-title {
+  font-size: 18pt;
+  font-weight: 700;
+  color: #1a2a4a;
+  line-height: 1.1;
+}
+.pd-subtitle {
+  font-size: 8pt;
+  color: #666;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.pd-meta {
+  text-align: right;
+  font-size: 8pt;
+  color: #555;
+  line-height: 1.6;
+}
+.pd-address-row {
+  margin-top: 8px;
+  font-size: 10pt;
+  font-weight: 600;
+  color: #1a2a4a;
+}
+.pd-address-label {
+  font-weight: 400;
+  color: #555;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Summary totals bar */
+.pd-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1.5px solid #1a4a7a;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.pd-summary-cell {
+  padding: 7px 10px;
+  border-right: 1px solid #c0d0e0;
+  background: #f0f5fc;
+}
+.pd-summary-cell:last-child { border-right: none; }
+.pd-summary-cell.balance { background: #f0faf2; }
+.pd-sum-label {
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #556;
+  display: block;
+  margin-bottom: 2px;
+}
+.pd-sum-value {
+  font-size: 12pt;
+  font-weight: 700;
+  color: #1a2a4a;
+}
+.pd-summary-cell.balance .pd-sum-value { color: #1a5e2a; }
+
+/* Section table */
+.pd-section { margin-bottom: 14px; break-inside: avoid; }
+.pd-section-title {
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 8px;
+  border-radius: 3px 3px 0 0;
+}
+.pd-section.exterior .pd-section-title  { background: #ddeeff; color: #1a3a6a; border: 1.5px solid #abc8ee; border-bottom: none; }
+.pd-section.interior .pd-section-title  { background: #f0e6fc; color: #4a1a7a; border: 1.5px solid #c8a8e8; border-bottom: none; }
+.pd-section.mechanicals .pd-section-title { background: #e0f5ec; color: #1a5a3a; border: 1.5px solid #9ad4b8; border-bottom: none; }
+
+.pd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+.pd-table th {
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #444;
+  padding: 5px 7px;
+  text-align: left;
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+}
+.pd-table th.num { text-align: right; }
+.pd-table td {
+  padding: 5px 7px;
+  border: 1px solid #e8e8e8;
+  vertical-align: middle;
+  color: #111;
+  line-height: 1.35;
+}
+.pd-table td.num { text-align: right; font-family: 'Courier New', monospace; font-size: 9pt; }
+.pd-table td.balance-cell { text-align: right; font-family: 'Courier New', monospace; font-size: 9pt; color: #1a5e2a; font-weight: 600; }
+.pd-table td.balance-neg { color: #b71c1c !important; }
+.pd-table tr:nth-child(even) td { background: #fafafa; }
+.pd-table tr:hover td { background: #f4f8ff; }
+
+.pd-cond {
+  display: inline-block;
+  font-size: 7.5pt;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pd-cond.good { background: #e8f5e9; color: #2e7d32; }
+.pd-cond.fair { background: #fff8e1; color: #7a5c00; }
+.pd-cond.poor { background: #fce4ec; color: #b71c1c; }
+.pd-cond.na   { background: #f3f3f3; color: #666; }
+
+.pd-table tr.section-total td {
+  font-weight: 700;
+  font-size: 8.5pt;
+  background: #f0f4f8 !important;
+  border-top: 1.5px solid #aac;
+  color: #1a2a4a;
+}
+.pd-table tr.section-total td.num,
+.pd-table tr.section-total td.balance-cell { color: #1a3a6a; }
+
+/* Grand total row */
+.pd-grand-total {
+  margin-top: 4px;
+  border: 2px solid #1a4a7a;
+  border-radius: 4px;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.pd-grand-total table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pd-grand-total table td {
+  padding: 8px 10px;
+  border-right: 1px solid #c0d0e0;
+  background: #e8f0fc;
+}
+.pd-grand-total table td:last-child { border-right: none; background: #e0f5ec; }
+.pd-gt-label {
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #445;
+  display: block;
+}
+.pd-gt-value {
+  font-size: 13pt;
+  font-weight: 700;
+  color: #1a2a4a;
+}
+.pd-grand-total table td:last-child .pd-gt-value { color: #1a5e2a; }
+.pd-grand-total-label {
+  padding: 6px 10px;
+  background: #1a4a7a;
+  color: white;
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Footer */
+.pd-footer {
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: #888;
+}
+
+/* Print-only header block (legacy, kept hidden) */
+.print-header { display: none; }
+</style>
+<!-- PRINT DOCUMENT - built by JS before printing -->
+<div id="print-doc"></div>
+
+<script>
+// ── PWA: SERVICE WORKER REGISTRATION ────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+
+// ── OFFLINE DETECTION ────────────────────────────────────────────────
+function updateOnlineStatus() {
+  const badge = document.getElementById('offlineBadge');
+  if (badge) badge.style.display = navigator.onLine ? 'none' : 'inline-block';
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ── INSTALL PROMPT ───────────────────────────────────────────────────
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('installBanner');
+  if (banner && !localStorage.getItem('installDismissed')) {
+    banner.style.display = 'flex';
+    // Push body up so banner doesn't cover content
+    document.body.style.paddingBottom = '100px';
+  }
+});
+
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(result => {
+    if (result.outcome === 'accepted') {
+      document.getElementById('installBanner').style.display = 'none';
+      document.body.style.paddingBottom = '120px';
+    }
+    deferredPrompt = null;
+  });
+}
+
+function dismissInstall() {
+  document.getElementById('installBanner').style.display = 'none';
+  document.body.style.paddingBottom = '120px';
+  localStorage.setItem('installDismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+  deferredPrompt = null;
+});
+
+// ── LOCALSTORAGE PERSISTENCE ─────────────────────────────────────────
+const STORAGE_KEY = 'repairEstimatorData_v1';
+
+function saveToStorage() {
+  const data = {
+    address: document.getElementById('propertyAddress')?.value || '',
+    draw1date: document.getElementById('draw1date')?.value || '',
+    draw2date: document.getElementById('draw2date')?.value || '',
+    state: state,
+    savedAt: new Date().toISOString()
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    showSaveToast();
+  } catch(e) {
+    console.warn('Could not save to localStorage:', e);
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+
+    if (data.address) {
+      const addrEl = document.getElementById('propertyAddress');
+      if (addrEl) addrEl.value = data.address;
+    }
+    if (data.draw1date) {
+      const d1 = document.getElementById('draw1date');
+      if (d1) d1.value = data.draw1date;
+    }
+    if (data.draw2date) {
+      const d2 = document.getElementById('draw2date');
+      if (d2) d2.value = data.draw2date;
+    }
+    if (data.state) {
+      Object.keys(data.state).forEach(id => {
+        if (state[id]) {
+          Object.assign(state[id], data.state[id]);
+        }
+      });
+    }
+    return true;
+  } catch(e) {
+    console.warn('Could not load from localStorage:', e);
+    return false;
+  }
+}
+
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToStorage, 800);
+}
+
+function showSaveToast() {
+  const toast = document.getElementById('saveToast');
+  if (!toast) return;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 1800);
+}
+
+// ── PATCH: autosave on all data changes ─────────────────────────────
+// These will be called after original functions init
+function patchAutosave() {
+  // Address and dates
+  ['propertyAddress', 'draw1date', 'draw2date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', scheduleSave);
+  });
+}
+</script>
+
+</body>
+</html>
